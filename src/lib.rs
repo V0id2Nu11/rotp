@@ -6,17 +6,17 @@ use std::ops::{Deref, DerefMut};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Default)]
-struct BaseOtp<'a> {
-    key: &'a str,
-    factor: u64,
+pub struct BaseOtp<'a> {
+    pub key: &'a str,
+    pub factor: u64,
 }
 
 impl<'a> BaseOtp<'a> {
     // setter
-    fn key(&mut self, key: &'a str) {
+    pub fn key(&mut self, key: &'a str) {
         self.key = key;
     }
-    fn factor(&mut self, factor: u64) {
+    pub fn factor(&mut self, factor: u64) {
         self.factor = factor;
     }
 }
@@ -69,34 +69,40 @@ impl<'a> GenOtp for BaseOtp<'a> {
     }
 }
 
-enum Otp<'a> {
+pub enum Otp<'a> {
     Hotp(BaseOtp<'a>),
     Totp(BaseOtp<'a>),
 }
 
 impl<'a> Otp<'a> {
-    fn new_hotp(key: &'a str, factor: u64) -> Self {
-        Self::Hotp(BaseOtp { key, factor, ..BaseOtp::default() })
+    pub fn new_hotp(key: &'a str, factor: u64) -> Self {
+        Self::Hotp(BaseOtp {
+            key,
+            factor,
+            ..BaseOtp::default()
+        })
     }
-    fn new_totp(key: &'a str) -> Self {
-        Self::Totp(BaseOtp { key, factor: Self::totp_factor(), ..BaseOtp::default() })
+    pub fn new_totp(key: &'a str) -> Self {
+        Self::Totp(BaseOtp {
+            key,
+            factor: Self::totp_factor(),
+            ..BaseOtp::default()
+        })
     }
     fn totp_factor() -> u64 {
-        let time = SystemTime::now()
+        let time: u64 = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
-        (time - 0) / 30
+        ((time - 0) / 30) as u64
     }
-    fn update(&mut self) -> u32 {
+    pub fn update(&mut self) -> u32 {
         let code = self.code();
         match self {
             Self::Hotp(_) => {
                 self.factor += 1;
-            },
-            Self::Totp(_) => {
-                self.factor = Self::totp_factor()
-            },
+            }
+            Self::Totp(_) => self.factor = Self::totp_factor(),
         }
         code
     }
@@ -132,7 +138,10 @@ mod tests {
 
     #[test]
     fn test_deref() {
-        let hotp = Otp::Hotp(BaseOtp { key: KEY, factor: 0 });
+        let hotp = Otp::Hotp(BaseOtp {
+            key: KEY,
+            factor: 0,
+        });
         assert_eq!(hotp.key, KEY);
     }
     #[test]
@@ -146,12 +155,19 @@ mod tests {
     #[test]
     fn test_totp() {
         let mut totp = Otp::new_totp("foobar");
-        println!("{}", totp.update());
-        println!("{}", Otp::totp_factor());
+        let code = totp.update();
+        println!(
+            "TOTP:\nkey:{}\nfactor:{}\ncode:{}",
+            totp.key,
+            Otp::totp_factor(),
+            code
+        );
     }
     #[test]
     fn test_hotp() {
         let mut hotp = Otp::new_hotp("foobar", 0);
-        println!("{}", hotp.update());
+        let factor = hotp.factor;
+        let code = hotp.update();
+        println!("HOTP:\nkey:{}\nfactor:{}\ncode:{}", hotp.key, factor, code);
     }
 }
